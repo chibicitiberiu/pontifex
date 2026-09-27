@@ -26,7 +26,8 @@ CACHE=$HERE/.cache
 mkdir -p "$CACHE"
 
 fetch() { # url dest
-    [ -s "$2" ] || { echo "  fetch $1"; curl -fsSL -o "$2.part" "$1" && mv "$2.part" "$2"; }
+    # progress goes to stderr: brandr_bin's stdout is captured as a path
+    [ -s "$2" ] || { echo "  fetch $1" >&2; curl -fsSL -o "$2.part" "$1" && mv "$2.part" "$2"; }
 }
 
 brandr_bin() { # i586|x86_64 -> path of the static binary

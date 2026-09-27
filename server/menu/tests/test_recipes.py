@@ -22,6 +22,8 @@ LISTINGS = {
     "mandrake": ["isolinux/alt0/vmlinuz", "isolinux/alt0/all.rdz", "Mandrake/base/hdlists"],
     "puppy": ["vmlinuz", "initrd.gz", "puppy_s15pup32_22.12.sfs", "zdrv_s15pup32_22.12.sfs",
               "isolinux.bin"],
+    "knoppix": ["boot/isolinux/linux", "boot/isolinux/linux64", "boot/isolinux/minirt.gz",
+                "KNOPPIX/KNOPPIX", "KNOPPIX/KNOPPIX1"],
     "anaconda": ["images/pxeboot/vmlinuz", "images/pxeboot/initrd.img", "images/install.img", ".treeinfo"],
 }
 
@@ -42,7 +44,7 @@ class DetectionTest(unittest.TestCase):
                 self.assertEqual(detected(names), expected.split()[0])
 
     def test_unknown_falls_back_to_sanboot(self):
-        self.assertEqual(detected(["isolinux/isolinux.bin", "KNOPPIX/KNOPPIX"]), "sanboot")
+        self.assertEqual(detected(["isolinux/isolinux.bin", "OS2/OS2KRNL"]), "sanboot")
 
     def test_debian_live_wins_over_installer(self):
         # Debian live ISOs carry the installer too; live/ must win

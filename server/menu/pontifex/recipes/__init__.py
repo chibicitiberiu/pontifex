@@ -12,6 +12,7 @@ from .arch import Archiso, SysrcdLegacy
 from .base import Ctx, Recipe, kernel_initrd
 from .debian import Casper, DebianInstaller, DebianLive
 from .generic import Memdisk, Sanboot
+from .knoppix import Knoppix
 from .mandrake import Mandrake
 from .puppy import Puppy
 from .redhat import Anaconda, AnacondaOld, DracutLive
@@ -33,6 +34,7 @@ ISO_RECIPES = [
     Mandrake(),
     Anaconda(),
     Puppy(),
+    Knoppix(),
 ]
 
 BY_NAME = {r.name: r for r in [MEMDISK, SANBOOT, *ISO_RECIPES]}

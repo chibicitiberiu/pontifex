@@ -112,8 +112,9 @@ echo "ok"
 
 # ---------------------------------------------------------------------------------------
 say "Building the disk writer (Tiny Core + brandr)"
-tag=$(curl -fsSL https://api.github.com/repos/chibicitiberiu/brandr/releases/latest 2>/dev/null \
-      | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+# the latest release's tag, from GitHub's redirect (the API is rate limited without a token)
+tag=$(curl -fsI https://github.com/chibicitiberiu/brandr/releases/latest 2>/dev/null \
+      | sed -n 's#^[Ll]ocation: .*/releases/tag/\([^[:space:]]*\).*#\1#p' | head -1)
 brandr_env=""
 if [ -n "${BRANDR_VERSION:-$tag}" ]; then
     echo "using brandr release ${BRANDR_VERSION:-$tag}"

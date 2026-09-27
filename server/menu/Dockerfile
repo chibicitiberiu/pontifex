@@ -4,7 +4,8 @@ RUN apt-get update \
       syslinux syslinux-common syslinux-utils mtools dosfstools wimtools fdisk \
  && rm -rf /var/lib/apt/lists/* \
  && (command -v 7z || ln -s "$(command -v 7zz)" /usr/local/bin/7z)
-COPY app.py /app/app.py
+COPY pontifex /app/pontifex
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
-CMD ["python3", "/app/app.py"]
+WORKDIR /app
+CMD ["python3", "-m", "pontifex"]

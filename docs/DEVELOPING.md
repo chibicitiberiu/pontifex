@@ -7,7 +7,8 @@ docker-compose.yml        the stack; site settings in .env, source mounts in the
 server/
   dnsmasq/                proxyDHCP + TFTP (config rendered from the environment)
   nginx/                  static files: /iso (library), /cache, /files (TFTP root)
-  menu/app.py             the menu service (stdlib Python, no framework)
+  menu/pontifex/          the menu service (stdlib Python package, no framework)
+  menu/tests/             its unit tests
 ipxe/                     iPXE build: config, embedded script template, containerized build
 writer/
   build.sh                Tiny Core + brandr -> writer boot sets (vmlinuz, core.gz, writer.gz)
@@ -17,27 +18,42 @@ test/                     QEMU helpers (see below)
 ```
 
 ## The menu service
-`server/menu/app.py` is one stdlib-only Python file. nginx serves the bytes and proxies
-everything else to it:
+`server/menu/pontifex/` is a stdlib-only Python package (run with `python3 -m pontifex`).
+nginx serves the bytes and proxies everything else to it.
 
-| Endpoint | |
+| Module | |
 |---|---|
-| `/menu.ipxe?platform=pcbios\|efi&mac=..` | the boot menu, built from `library/` on every request |
-| `/entry/<id>.ipxe?platform=..` | the boot script for one entry |
-| `/status`, `/rescan`, `/reprepare?id=..` | plain-text overview; force a scan; redo one entry |
-| `/images.json` | the image catalog brandr reads |
-| `/variant/<id>/usb-hdd.img`, `usb-zip.img` | a floppy image as a USB-HDD/ZIP disk (built once) |
-| `/variant/<id>/uefi.json`, `uefi.img` | a CD-only ISO as a FAT32 UEFI stick (built in the background) |
-| `/writer.ipxe?platform=..` | boots the disk writer |
+| `config.py` | settings from the environment, shared constants |
+| `library.py` | scanning the library: `Entry`, sidecars, sets, sections |
+| `image.py` | reading images: `IsoListing` (list/extract/read), El Torito, disk kind |
+| `recipes/` | one module per family (`debian`, `redhat`, `arch`, `windows`, `mandrake`, `generic`) plus the registry in `__init__.py` |
+| `worker.py` | background preparation, rescan, reprepare |
+| `menu.py` | the iPXE menu and entry scripts, `/status` |
+| `catalog.py`, `variants/` | `/images.json`, and the layouts built for the disk writer (floppy USB-HDD/ZIP, UEFI sticks) |
+| `writer.py` | the disk writer's boot script |
+| `http.py` | routes and file serving (the route table lists every endpoint) |
 
-A background worker prepares each image once: `prepare()` lists the image (bsdtar, or 7z for
-UDF), picks a recipe, extracts what it needs into `cache/<key>/` and writes `meta.json`.
-`render_entry()` turns that into an iPXE script at boot time.
+A background worker prepares each image once: `recipes.prepare()` lists the image (bsdtar,
+or 7z for UDF), picks the first recipe whose `detect()` matches, and its `prepare()` extracts
+what it needs into `cache/<key>/` and fills `meta.json`. At boot, `render()` turns that into
+iPXE lines.
 
-**Adding a recipe:** add a detection block to `prepare()` before the generic `sanboot` fallback.
-Match on files in the image (`has`, `names`, `first()`), `extract()` what the kernel needs,
-and set `recipe`, `files`, `args` and `platforms` in `meta`. Kernel/initrd recipes need no
-changes in `render_entry()`. Bump `RECIPE_VERSION` if existing cache entries must be redone.
+**Adding a recipe:** subclass `Recipe` (`recipes/base.py`):
+```python
+class Knoppix(Recipe):
+    name = "knoppix"
+    def detect(self, ctx):                       # cheap: look at the file list
+        return ctx.iso.has("knoppix/knoppix")
+    def prepare(self, ctx):                      # extract, fill ctx.meta; False = let others try
+        ctx.iso.extract(["boot/isolinux/linux", "boot/isolinux/minirt.gz"], ctx.dest)
+        ctx.meta.update(recipe=self.name, files={...}, args="...", notes="...")
+        return True
+```
+Kernel+initrd recipes inherit `render()`. List the class in `ISO_RECIPES` before any family
+it must win against, add its file list to `tests/test_recipes.py`, and bump `RECIPE_VERSION`
+if existing cache entries must be redone.
+
+**Tests:** `cd server/menu && python3 -m unittest discover -s tests -t .` (CI runs them).
 
 ## Building the pieces by hand
 ```sh

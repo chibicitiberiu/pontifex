@@ -18,7 +18,9 @@ jobs:
             writer/overlay/usr/local/bin/pontifex-writer server/dnsmasq/entrypoint.sh \
             test/qemu.sh test/qemu-pxe.sh test/shot.sh
       - name: python
-        run: python3 -m py_compile server/menu/app.py test/sendkeys.py test/flaky_http.py
+        run: |
+          python3 -m py_compile test/sendkeys.py test/flaky_http.py
+          cd server/menu && python3 -m unittest discover -s tests -t . -v
 
   compose:
     runs-on: ubuntu-latest

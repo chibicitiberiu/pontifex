@@ -47,21 +47,39 @@ recipe that matches:
 | `casper/vmlinuz` | casper | Ubuntu/Mint: kernel + initrd, `url=` loads the ISO into RAM | both |
 | `.disk/info` + `install.amd/` | debian-installer | the matching netboot kernel + initrd from deb.debian.org (the CD initrd can't netboot) | both |
 | `live/filesystem.squashfs` | debian-live | GParted, Clonezilla, Debian live: `fetch=` squashfs | both |
-| `<base>/boot/x86_64/vmlinuz*` + airootfs | archiso | Arch, EndeavourOS, SystemRescue 6+: `archiso_http_srv=` | both |
+| `<base>/boot/{x86_64,i686}/vmlinuz*` + airootfs | archiso | Arch, EndeavourOS, SystemRescue 6+ (also 32-bit): `archiso_http_srv=` | both (i686: BIOS) |
 | `sysrcd.dat` | sysrcd-legacy | SystemRescueCd 5 and older: `netboot=`; 32-bit kernel on CPUs without long mode | both |
 | `LiveOS/squashfs.img` | dracut-live | Fedora and Nobara live: `root=live:` (whole ISO into RAM) | both |
 | `*/base/stage2.img` + pxeboot | anaconda-old | Red Hat 7-9, Fedora Core 1-6: `method=` HTTP tree | BIOS |
 | `isolinux/alt0` + `Mandrake/base` | mandrake | stage1 HTTP install from the merged CD set ([needs port 80](SETUP.md#old-installers-that-need-port-80)) | BIOS |
 | `images/pxeboot/` (+ install.img / .treeinfo) | anaconda | Alma, Rocky, Fedora netinst and DVD: `inst.stage2=`, packages from the ISO or the distro mirror | both |
+| `puppy_*.sfs` + `vmlinuz` | puppy | Puppy Linux: the .sfs files [go into the initramfs](#images-carried-in-the-initramfs) | per kernel |
+| `KNOPPIX/KNOPPIX` + cpio `minirt.gz` | knoppix | Knoppix 6+: the KNOPPIX images go into the initramfs | per size |
+| `antiX/linuxfs` | antix | antiX, MX Linux: linuxfs goes into the initramfs | per size |
+| `images/rootfs.img` + `loader/entries/` | clear-linux | Clear Linux live: rootfs.img goes into the initramfs | UEFI |
+| `EFI/BOOT/BOOT.CFG` + `MBOOT.C32` | esxi | VMware ESXi installer: mboot fetches its modules over HTTP | UEFI |
 | anything else | sanboot | iPXE emulates a CD drive over HTTP (floppy-emulation boot images use memdisk instead) | per El Torito |
 
-Entries that fell back to generic CD emulation are tagged **`[unknown]`** in the menu. Their
+Entries that fell back to generic CD emulation are tagged **`[unknown]`** in the menu, or
+with the reason when the family is known not to netboot (`[needs a CD]`, `[use a USB stick]`,
+`[too big to netboot]`). Their
 boot loader starts, but whatever runs after it may not find its media (see [limits](#limits)).
 Big images show how much **RAM** they need, e.g. `(RAM 6GB+)`, since live systems and some
 installers load everything into memory.
 
 Entries that can't work on a firmware are left out of that menu: floppy images and
 memdisk-only ISOs don't appear on UEFI, and ISOs without an EFI boot entry don't either.
+
+### Images carried in the initramfs
+Some live CDs (Puppy, Knoppix, antiX/MX, Clear Linux) have no network code in their initrd:
+they only look for their root image on disks. For these, iPXE downloads the root image along
+with the initrd and places it inside the initramfs, where the init finds it (for antiX and
+Clear, via a small patched `/init` appended as an extra initrd). What that means:
+- **RAM:** about twice the root image while booting, shown in the menu (`RAM 5GB+`).
+- **BIOS:** the kernel only accepts initrds below 2 GB there, so bigger images are UEFI
+  only, and a 32-bit kernel only takes about 750 MB. Puppy fits on BIOS, MX and Knoppix DVD don't.
+- Files over 2 GB are split in the cache and joined by the init (the kernel truncates a
+  single initramfs file at 2 GB).
 
 ## The cache
 `cache/<key>/` holds what each image needed: kernels, initrds, a squashfs, a full install tree
@@ -79,9 +97,12 @@ and superseded folders go to `cache/.old/` for you to delete.
   size in `cache/`.
 
 ## Limits
-- **Old live CDs** (Knoppix, MX/antiX, Puppy, older PCLinuxOS, Ubuntu before 18.04, Corel) boot
-  their loader through CD emulation, but their kernel then looks for a real CD and gives up.
-  Recipes for these families are welcome (see [DEVELOPING.md](DEVELOPING.md)).
+- **Old live CDs** with an ext2 initrd (Knoppix 5 and older, Morphix/Ubuntu 4.10, PCLinuxOS)
+  and Ubuntu before 18.04 boot their loader, but their kernel then looks for a real CD. They're
+  labelled in the menu. PCLinuxOS ISOs are hybrid: write one to a USB stick with the disk writer.
+- **Corel Linux** and other installers that read packages from their CD.
+- **ESXi on BIOS:** its mboot.c32 needs an old pxelinux; use UEFI.
+- Recipes for more families are welcome (see [DEVELOPING.md](DEVELOPING.md)).
 - **Windows 9x / NT / XP setup CDs** boot (their floppy-emulation boot images work), but setup
   can't see the CD afterwards. Write their boot floppies with the disk writer instead, or use a
   CD drive.

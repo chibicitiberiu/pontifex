@@ -26,7 +26,7 @@ nginx serves the bytes and proxies everything else to it.
 | `config.py` | settings from the environment, shared constants |
 | `library.py` | scanning the library: `Entry`, sidecars, sets, sections |
 | `image.py` | reading images: `IsoListing` (list/extract/read), El Torito, disk kind |
-| `recipes/` | one module per family (`debian`, `redhat`, `arch`, `windows`, `mandrake`, `generic`) plus the registry in `__init__.py` |
+| `recipes/` | one module per family (`debian`, `redhat`, `arch`, `puppy`, `knoppix`, `antix`, `clear`, `esxi`, `windows`, `mandrake`, `generic`), `unsupported.py` (families that can't netboot, and why), and the registry in `__init__.py` |
 | `worker.py` | background preparation, rescan, reprepare |
 | `menu.py` | the iPXE menu and entry scripts, `/status` |
 | `catalog.py`, `variants/` | `/images.json`, and the layouts built for the disk writer (floppy USB-HDD/ZIP, UEFI sticks) |
@@ -40,16 +40,19 @@ iPXE lines.
 
 **Adding a recipe:** subclass `Recipe` (`recipes/base.py`):
 ```python
-class Knoppix(Recipe):
-    name = "knoppix"
+class Slax(Recipe):
+    name = "slax"
     def detect(self, ctx):                       # cheap: look at the file list
-        return ctx.iso.has("knoppix/knoppix")
+        return ctx.iso.has("slax/boot/vmlinuz")
     def prepare(self, ctx):                      # extract, fill ctx.meta; False = let others try
-        ctx.iso.extract(["boot/isolinux/linux", "boot/isolinux/minirt.gz"], ctx.dest)
+        ctx.iso.extract(["slax/boot/vmlinuz", "slax/boot/initrfs.img"], ctx.dest)
         ctx.meta.update(recipe=self.name, files={...}, args="...", notes="...")
         return True
 ```
-Kernel+initrd recipes inherit `render()`. List the class in `ISO_RECIPES` before any family
+Kernel+initrd recipes inherit `render()`. For live CDs that can't fetch anything over the
+network, `files.inject` puts files inside the initramfs, `inject_files()` splits ones over
+2 GB, `overlay_init()` patches the init, and `fit_payload()` picks the platforms and RAM
+hint; `puppy.py` is the smallest example. List the class in `ISO_RECIPES` before any family
 it must win against, add its file list to `tests/test_recipes.py`, and bump `RECIPE_VERSION`
 if existing cache entries must be redone.
 

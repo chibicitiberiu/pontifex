@@ -19,6 +19,7 @@ from .knoppix import Knoppix
 from .mandrake import Mandrake
 from .puppy import Puppy
 from .redhat import Anaconda, AnacondaOld, DracutLive
+from .unsupported import reason as unsupported_reason
 from .windows import Wimboot
 
 MEMDISK = Memdisk()
@@ -48,8 +49,9 @@ BY_NAME = {r.name: r for r in [MEMDISK, SANBOOT, *ISO_RECIPES]}
 
 def prepare(entry):
     """Detect the recipe and extract what it needs. Returns the meta dict."""
-    meta = {"rel": entry.rel, "real": entry.real, "recipe": None, "platforms": ["pcbios", "efi"],
+    base = {"rel": entry.rel, "real": entry.real, "recipe": None, "platforms": ["pcbios", "efi"],
             "files": {}, "args": "", "notes": ""}
+    meta = dict(base, files={})
     forced = entry.side.get("recipe")   # sidecar override
     if entry.rel.lower().endswith(DISK_EXT) or forced == "memdisk":
         MEMDISK.prepare(Ctx(entry, None, meta))
@@ -58,10 +60,20 @@ def prepare(entry):
     iso = IsoListing.read(entry.real)
     meta["tool"] = iso.reader
     ctx = Ctx(entry, iso, meta)
+    why = None
     for recipe in ISO_RECIPES:
         if forced in (None, "", "auto", recipe.name) and recipe.detect(ctx) and recipe.prepare(ctx):
-            return meta
+            if meta["platforms"]:
+                return meta
+            # recognized, but it fits no platform (e.g. too big for its kernel)
+            why = ("too big to netboot", meta.get("notes", ""))
+            meta.clear()
+            meta.update(base, files={})
+            break
     SANBOOT.prepare(ctx)
+    why = why or unsupported_reason(iso)
+    if why:
+        meta["unsupported"], meta["notes"] = why[0], f"{why[1]}; {meta['notes']}"
     return meta
 
 

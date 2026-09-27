@@ -23,6 +23,13 @@ class MenuTest(unittest.TestCase):
             json.dump({"state": "ready", "platforms": ["pcbios", "efi"], **meta}, f)
         return e
 
+    def test_unknown_and_unsupported_tags(self):
+        e = self.prepared("retro/os2.iso", {"recipe": "sanboot"})
+        self.assertIn("[unknown]", menu.menu_item(e, {"recipe": "sanboot"})[0])
+        line = menu.menu_item(e, {"recipe": "sanboot", "unsupported": "needs a CD"})[0]
+        self.assertIn("[needs a CD]", line)
+        self.assertNotIn("[unknown]", line)
+
     def test_kernel_initrd_entry(self):
         e = self.prepared("linux/deb.iso", {"recipe": "debian-live", "args": "boot=live",
                                             "files": {"kernel": "live/vmlinuz", "initrd": "live/initrd.img"}})

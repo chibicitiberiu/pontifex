@@ -20,8 +20,9 @@ make boot media on hardware your modern PC doesn't have.
   too, so an existing ISO collection can be linked in once.
 - **Auto-detected boot recipes.** Debian and Ubuntu installers, Fedora/Alma/Rocky (Anaconda),
   Arch/EndeavourOS/SystemRescue (archiso), Debian live (GParted, Clonezilla), Fedora live,
-  WinPE and Windows setup (wimboot), Mandrake, Red Hat and Fedora Core installers, floppy
-  images (memdisk), and a generic CD-emulation fallback for everything else. Entries show the
+  Puppy, Knoppix, antiX/MX, Clear Linux, the VMware ESXi installer, WinPE and Windows setup
+  (wimboot), Mandrake, Red Hat and Fedora Core installers, floppy images (memdisk), and a
+  generic CD-emulation fallback for everything else. Entries show the
   RAM they need, and images no recipe recognized are tagged `[unknown]`.
 - **BIOS, UEFI and retro.** Boot from a NIC's PXE ROM, or from an iPXE floppy for cards
   without one. NE2000 and 3c509 ISA floppies are built too.

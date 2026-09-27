@@ -41,7 +41,11 @@ def menu_item(e, meta):
         return f"item --gap --    {label}  [ERROR, see /status]", False
     hint = f"  ({meta['label_hint']})" if meta.get("label_hint") else ""
     # no recipe recognized the image: it gets generic CD emulation, which may not get far
-    unknown = "  [unknown]" if meta.get("recipe") == "sanboot" else ""
+    unknown = ""
+    if meta.get("unsupported"):
+        unknown = f"  [{meta['unsupported']}]"
+    elif meta.get("recipe") == "sanboot":
+        unknown = "  [unknown]"
     return f"item e{e.id}   {label}{hint}{unknown}", True
 
 

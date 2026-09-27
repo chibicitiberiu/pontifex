@@ -63,3 +63,16 @@ class DetectionTest(unittest.TestCase):
             self.assertFalse(recipes.BY_NAME["dracut-live"].prepare(ctx))
         finally:
             site.close()
+
+
+class UnsupportedTest(unittest.TestCase):
+    def test_known_families_say_why(self):
+        from pontifex.recipes.unsupported import reason
+        for names, tag in ((["KNOPPIX/KNOPPIX", "boot/isolinux/minirt.gz"], "needs a CD"),
+                           (["base/morphix", "boot/miniroot.gz"], "needs a CD"),
+                           (["livecd.sqfs", "isolinux/initrd.gz"], "use a USB stick"),
+                           (["WIN98/SETUP.EXE", "WIN98"], "setup needs a CD"),
+                           (["OS2/OS2KRNL"], None)):
+            with self.subTest(names[0]):
+                r = reason(IsoListing("/x.iso", "bsdtar", names))
+                self.assertEqual(r[0] if r else None, tag)

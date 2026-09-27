@@ -41,7 +41,7 @@ class Esxi(Recipe):
             f.write(cfg)
         ctx.meta.update(recipe=self.name, platforms=["efi"],
                         notes="ESXi installer over HTTP (UEFI only); needs 8 GB RAM and a supported NIC",
-                        label_hint="UEFI, RAM 8GB+")
+                        label_hint="RAM 8GB+")
         return True
 
     def render(self, entry, meta, platform, extra):

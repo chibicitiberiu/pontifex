@@ -50,6 +50,8 @@ class MenuTest(unittest.TestCase):
         self.assertIsNone(menu.ram_need({"label_hint": "casper too old"}, "pcbios"))
         self.assertEqual(menu.parse_mem(""), None)
         self.assertEqual(menu.parse_mem("2015"), 2015)
+        self.assertFalse(menu.too_big(2048, 2046))     # "RAM 2GB+" on a 2 GB machine
+        self.assertTrue(menu.too_big(4714, 2046))
 
     def test_kernel_initrd_entry(self):
         e = self.prepared("linux/deb.iso", {"recipe": "debian-live", "args": "boot=live",

@@ -2,3 +2,4 @@
 docker-compose.override.yml
 __pycache__/
 .cache/
+ipxe/out.bak-*/

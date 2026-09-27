@@ -22,6 +22,12 @@ def ram_need(meta, platform):
     return int(float(m.group(1)) * 1024)
 
 
+def too_big(need, mem):
+    """True if an entry needing `need` MB won't fit in `mem` MB. The needs are estimates
+    rounded up, and a machine reports a bit less than its installed RAM: allow some slack."""
+    return bool(mem and need and need > mem * 1.03 + 64)
+
+
 def parse_mem(value):
     """iPXE's ${memsize} (MB; empty where iPXE can't tell, e.g. on UEFI)."""
     try:
@@ -64,7 +70,7 @@ def menu_item(e, meta, platform="pcbios", mem=None):
         return f"item --gap --    {label}  [ERROR, see /status]", False
     hint = f"  ({meta['label_hint']})" if meta.get("label_hint") else ""
     need = ram_need(meta, platform)
-    if mem and need and need > mem:
+    if too_big(need, mem):
         hint = f"  (needs {ram_text(need)} RAM, has {ram_text(mem)})"
     # no recipe recognized the image: it gets generic CD emulation, which may not get far
     unknown = ""
@@ -130,7 +136,7 @@ def render_entry(entry, platform, mem=None):
         return "#!ipxe\necho This entry is not ready yet\nprompt\nexit 1\n"
     lines = ["#!ipxe"]
     need = ram_need(meta, platform)
-    if mem and need and need > mem:
+    if too_big(need, mem):
         # loading it anyway would end in a kernel panic halfway through the boot
         lines += [f"echo {ipxe_text(entry.label)} needs about {ram_text(need)} of RAM,",
                   f"echo but this machine reports {ram_text(mem)}.",

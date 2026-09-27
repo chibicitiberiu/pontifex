@@ -27,6 +27,7 @@ LISTINGS = {
     "antix": ["antiX/vmlinuz", "antiX/initrd.gz", "antiX/linuxfs", ".disk/info"],
     "clear-linux": ["images/rootfs.img", "loader/entries/Clear-linux-native-6.9.10-1451.conf",
                     "loader/entries/iso-checksum.conf", "EFI/BOOT/initrd.gz"],
+    "esxi": ["BOOT.CFG", "EFI/BOOT/BOOT.CFG", "EFI/BOOT/BOOTX64.EFI", "MBOOT.C32", "B.B00"],
     "anaconda": ["images/pxeboot/vmlinuz", "images/pxeboot/initrd.img", "images/install.img", ".treeinfo"],
 }
 

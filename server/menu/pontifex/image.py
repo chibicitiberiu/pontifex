@@ -98,9 +98,9 @@ def extract(image, reader, members, dest):
         r = run(["bsdtar", "-xf", image, "-C", dest, *members])
     else:
         r = run(["7z", "x", "-y", READERS[reader][1], f"-o{dest}", image, *members])
-    # ISO permissions come out read-only: later extractions into the same tree (CD2 of a
-    # set) and cache cleanup both need write access
-    run(["chmod", "-R", "u+w", dest])
+    # ISO permissions come out read-only (or even 0700): later extractions into the same
+    # tree (CD2 of a set) and cache cleanup need write access, nginx needs read access
+    run(["chmod", "-R", "u+w,a+rX", dest])
     check(r, f"{reader} extract failed")
 
 

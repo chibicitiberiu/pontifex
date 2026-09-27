@@ -13,6 +13,7 @@ from .arch import Archiso, SysrcdLegacy
 from .clear import ClearLinux
 from .base import Ctx, Recipe, kernel_initrd
 from .debian import Casper, DebianInstaller, DebianLive
+from .esxi import Esxi
 from .generic import Memdisk, Sanboot
 from .knoppix import Knoppix
 from .mandrake import Mandrake
@@ -39,6 +40,7 @@ ISO_RECIPES = [
     Knoppix(),
     Antix(),
     ClearLinux(),
+    Esxi(),
 ]
 
 BY_NAME = {r.name: r for r in [MEMDISK, SANBOOT, *ISO_RECIPES]}

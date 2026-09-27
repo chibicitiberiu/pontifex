@@ -6,7 +6,7 @@
 #   undionly.kpxe  BIOS PXE (uses the NIC's own PXE ROM)   ipxe.efi / snponly.efi  UEFI x64
 #   ipxe.dsk / ipxe.iso / ipxe.lkrn  boot iPXE from a floppy/CD (PCI NIC drivers built in)
 #   ne.dsk / 3c509.dsk               floppies for ISA NE2000 / 3Com 3c509 cards
-# IPXE_REF picks the iPXE commit (default: master).
+# IPXE_REF picks the iPXE commit (default: master). patches/ are applied on top.
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 URL=${1:?usage: build.sh <server url> [--install <data dir>]}
@@ -27,9 +27,10 @@ sed "s|@SERVER_URL@|$URL|g" "$HERE/embed.ipxe.in" > "$HERE/.cache/embed.ipxe"
     git config --global --add safe.directory "*"   # the clone is owned by the caller, not root
     src=/w/.cache/ipxe
     [ -d "$src/.git" ] || git clone -q https://github.com/ipxe/ipxe.git "$src"
-    git -C "$src" fetch -q origin && git -C "$src" checkout -q "$REF"
-    [ "$REF" = master ] && git -C "$src" reset -q --hard origin/master
-    cp /w/config-local/general.h "$src/src/config/local/general.h"
+    git -C "$src" fetch -q origin && git -C "$src" checkout -q -f "$REF"
+    if [ "$REF" = master ]; then git -C "$src" reset -q --hard origin/master; else git -C "$src" reset -q --hard; fi
+    for p in /w/patches/*.patch; do git -C "$src" apply "$p"; done
+    cp /w/config-local/general.h /w/config-local/settings.h "$src/src/config/local/"
     cd "$src/src"
     make -s clean >/dev/null
     E=/w/.cache/embed.ipxe; J=$(nproc)

@@ -5,7 +5,7 @@ UEFI only: the BIOS path needs an old pxelinux for mboot.c32."""
 import os
 import re
 
-from .base import Recipe
+from .base import Recipe, need_ram
 
 BOOTCFG = "pontifex-boot.cfg"
 
@@ -41,7 +41,8 @@ class Esxi(Recipe):
             f.write(cfg)
         ctx.meta.update(recipe=self.name, platforms=["efi"],
                         notes="ESXi installer over HTTP (UEFI only); needs 8 GB RAM and a supported NIC",
-                        label_hint="RAM 8GB+")
+)
+        need_ram(ctx.meta, 8 << 30)
         return True
 
     def render(self, entry, meta, platform, extra):

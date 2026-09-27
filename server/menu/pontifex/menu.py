@@ -4,7 +4,30 @@ import os
 import re
 
 from . import config, library, recipes, worker, writer
+from .recipes.base import ram_text
 from .util import ipxe_text
+
+LEGACY_HINT = re.compile(r"(?:BIOS: )?RAM (\d+(?:\.\d+)?)GB\+")
+
+
+def ram_need(meta, platform):
+    """MB of RAM an entry needs on this platform, or None. Caches prepared before ram_mb
+    existed only have the menu hint, so fall back to reading that."""
+    if "ram_mb" in meta:
+        applies = meta.get("ram_platform") in (None, platform)
+        return meta["ram_mb"] if applies else None
+    m = LEGACY_HINT.fullmatch(meta.get("label_hint", ""))
+    if not m or (meta["label_hint"].startswith("BIOS") and platform != "pcbios"):
+        return None
+    return int(float(m.group(1)) * 1024)
+
+
+def parse_mem(value):
+    """iPXE's ${memsize} (MB; empty where iPXE can't tell, e.g. on UEFI)."""
+    try:
+        return int(value) or None
+    except (TypeError, ValueError):
+        return None
 
 
 def load_hosts():
@@ -30,7 +53,7 @@ def load_hosts():
     return hosts
 
 
-def menu_item(e, meta):
+def menu_item(e, meta, platform="pcbios", mem=None):
     """The menu line for one entry, and whether it's bootable."""
     label = ipxe_text(e.label)
     if e.error:
@@ -40,6 +63,9 @@ def menu_item(e, meta):
     if meta.get("state") == "error":
         return f"item --gap --    {label}  [ERROR, see /status]", False
     hint = f"  ({meta['label_hint']})" if meta.get("label_hint") else ""
+    need = ram_need(meta, platform)
+    if mem and need and need > mem:
+        hint = f"  (needs {ram_text(need)} RAM, has {ram_text(mem)})"
     # no recipe recognized the image: it gets generic CD emulation, which may not get far
     unknown = ""
     if meta.get("unsupported"):
@@ -49,7 +75,7 @@ def menu_item(e, meta):
     return f"item e{e.id}   {label}{hint}{unknown}", True
 
 
-def render_menu(platform, mac):
+def render_menu(platform, mac, mem=None):
     entries = [e for e in library.scan() if not e.hidden]
     worker.enqueue_all(entries)
     host = load_hosts().get((mac or "").lower())
@@ -66,7 +92,7 @@ def render_menu(platform, mac):
         if e.heading != current:
             out.append(f"item --gap --  ---- {ipxe_text(e.heading)} ----")
             current = e.heading
-        line, bootable = menu_item(e, meta)
+        line, bootable = menu_item(e, meta, platform, mem)
         out.append(line)
         if bootable:
             targets.append(e)
@@ -87,7 +113,7 @@ def render_menu(platform, mac):
     out += [f"choose --default {default}{tmo} target && goto ${{target}} || goto exit", ""]
     for e in targets:
         out += [f":e{e.id}",
-                f"chain ${{pxebase}}/entry/{e.id}.ipxe?platform=${{platform}} || goto failed",
+                f"chain ${{pxebase}}/entry/{e.id}.ipxe?platform=${{platform}}&mem=${{memsize}} || goto failed",
                 "goto start"]
     out += [":writer", "chain ${pxebase}/writer.ipxe?platform=${platform} || goto failed", "goto start",
             ":netbootxyz", "chain --autofree https://boot.netboot.xyz || goto failed", "goto start",
@@ -98,11 +124,19 @@ def render_menu(platform, mac):
     return "\n".join(out)
 
 
-def render_entry(entry, platform):
+def render_entry(entry, platform, mem=None):
     meta = entry.meta()
     if not meta or meta.get("state") != "ready":
         return "#!ipxe\necho This entry is not ready yet\nprompt\nexit 1\n"
-    lines = ["#!ipxe", f"echo Booting {ipxe_text(entry.label)} ({meta['recipe']})"]
+    lines = ["#!ipxe"]
+    need = ram_need(meta, platform)
+    if mem and need and need > mem:
+        # loading it anyway would end in a kernel panic halfway through the boot
+        lines += [f"echo {ipxe_text(entry.label)} needs about {ram_text(need)} of RAM,",
+                  f"echo but this machine reports {ram_text(mem)}.",
+                  "prompt --key y Press y to try anyway, any other key for the menu && goto go || exit 0",
+                  ":go"]
+    lines += [f"echo Booting {ipxe_text(entry.label)} ({meta['recipe']})"]
     if meta.get("notes"):
         lines.append(f"echo Note: {ipxe_text(meta['notes'])}")
     lines += recipes.render(entry, meta, platform, entry.side.get("args", ""))

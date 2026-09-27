@@ -101,10 +101,25 @@ def inject_files(ctx, pairs):
     return inject, join
 
 
+def ram_text(mb):
+    return f"{mb / 1024:.1f}".removesuffix(".0") + "GB" if mb >= 1024 else f"{-(-mb // 64) * 64}MB"
+
+
+def need_ram(meta, nbytes, platform=None):
+    """Record how much RAM an entry needs (one platform only, if given). The menu shows it,
+    and warns before booting on a BIOS machine that reports less (iPXE's ${memsize})."""
+    mb = -(-int(nbytes) // (1 << 20))
+    meta["ram_mb"], meta["ram_platform"] = mb, platform
+    meta["label_hint"] = ("BIOS: " if platform == "pcbios" else "") + f"RAM {ram_text(mb)}+"
+
+
 # iPXE on BIOS puts initrds between the kernel and initrd_max; leave room for the kernel.
 # A 32-bit kernel also needs them in its low memory (under ~896 MB).
 BIOS_KERNEL_ROOM = 128 << 20
 LOWMEM_32 = 0x38000000
+# Our iPXE (ipxe/patches) lets kernels that accept initrds above 4 GB have them anywhere
+# below 4 GB; a BIOS PC has about this much usable RAM there
+BELOW_4G = 3 << 30
 
 
 def fit_payload(ctx):
@@ -117,7 +132,12 @@ def fit_payload(ctx):
         raise RuntimeError(f"{f['kernel']} is not a Linux kernel")
     paths = (f.get("initrds") or [f["initrd"]]) + [src for src, _ in f.get("inject", [])]
     total = sum(os.path.getsize(ctx.cache_path(p)) for p in paths)
-    limit = info["initrd_max"] if info["is64"] else min(info["initrd_max"], LOWMEM_32)
+    if not info["is64"]:
+        limit = min(info["initrd_max"], LOWMEM_32)
+    elif info["above4g"]:
+        limit = BELOW_4G
+    else:
+        limit = info["initrd_max"]
     platforms = []
     if total + BIOS_KERNEL_ROOM < limit:
         platforms.append("pcbios")
@@ -125,7 +145,7 @@ def fit_payload(ctx):
         platforms.append("efi")
     meta["platforms"] = platforms
     meta["payload"] = total
-    meta["label_hint"] = f"RAM {max(1, round(total * 2 / 2**30 + 0.75))}GB+"
+    need_ram(meta, total * 2 + (512 << 20))
     if "pcbios" not in platforms:
         why = f"{total >> 20} MB is too big for a BIOS netboot" + (
             "" if info["efi64"] else ", and the kernel has no x86_64 UEFI entry")

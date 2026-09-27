@@ -8,7 +8,7 @@ echo DHCP failed, retrying in 3 seconds...
 sleep 3
 goto retry
 :menu
-chain @SERVER_URL@/menu.ipxe?platform=${platform}&buildarch=${buildarch}&mac=${mac:hexhyp} && goto retry
+chain @SERVER_URL@/menu.ipxe?platform=${platform}&buildarch=${buildarch}&mac=${mac:hexhyp}&mem=${memsize} && goto retry
 echo Could not load @SERVER_URL@/menu.ipxe
 echo Dropping to the iPXE shell. Type "exit" to retry.
 shell

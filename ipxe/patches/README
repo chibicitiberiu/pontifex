@@ -1,0 +1,7 @@
+Applied by build.sh on top of the iPXE checkout, in name order.
+
+bzimage-initrd-below-4g.patch
+  On BIOS, iPXE keeps initrds below the kernel's initrd_addr_max, which is 2 GB even for
+  kernels that accept initrds anywhere (XLF_CAN_BE_LOADED_ABOVE_4G). With the patch those
+  kernels get the whole 32-bit space, so a 2-3 GB live image carried in the initramfs (MX)
+  also boots on BIOS machines.

@@ -3,7 +3,7 @@
 import os
 import re
 
-from .base import Recipe
+from .base import Recipe, need_ram
 
 # Boot ISOs of these carry no packages: point Anaconda at the release's mirror
 ANACONDA_REPOS = {
@@ -36,7 +36,7 @@ class DracutLive(Recipe):
         ctx.meta.update(recipe=self.name, files={"kernel": iso.orig(kernel), "initrd": iso.orig(initrd)},
                         args=f"root=live:{entry.iso_url} rd.live.image rd.neednet=1 ip=dhcp",
                         notes=f"downloads the whole ISO into RAM: needs about {ram_gb:.0f}GB RAM")
-        ctx.meta["label_hint"] = f"RAM {ram_gb:.0f}GB+"
+        need_ram(ctx.meta, ram_gb * 2**30)
         return True
 
 
@@ -92,7 +92,7 @@ class Anaconda(Recipe):
         img = os.path.join(tree, iso.orig("images/install.img")) if iso.has("images/install.img") else None
         if img and os.path.exists(img):  # stage2 lives in RAM, plus the installer itself
             # (Fedora 44 on UEFI failed with 3GB, hence the 4GB floor)
-            meta["label_hint"] = f"RAM {max(4, round(os.path.getsize(img) * 2 / 2**30 + 1.5))}GB+"
+            need_ram(meta, max(4 << 30, os.path.getsize(img) * 2 + (3 << 29)))
         meta.update(recipe=self.name, files={"kernel": "tree/" + iso.orig("images/pxeboot/vmlinuz"),
                                              "initrd": "tree/" + iso.orig("images/pxeboot/initrd.img")},
                     args=args, notes=notes)

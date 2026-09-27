@@ -203,6 +203,7 @@ def bzimage_info(path):
     return {"version": version,
             "is64": bool(xload & 0x1),
             "efi64": bool(pe64 or xload & 0x8),
+            "above4g": bool(xload & 0x2),
             "initrd_max": u32(0x22c) if version >= 0x203 else 0x37ffffff}
 
 

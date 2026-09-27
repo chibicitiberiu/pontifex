@@ -1,0 +1,46 @@
+diff --git a/src/arch/x86/image/bzimage.c b/src/arch/x86/image/bzimage.c
+index 16a47fc57..498dfb16e 100644
+--- a/src/arch/x86/image/bzimage.c
++++ b/src/arch/x86/image/bzimage.c
+@@ -173,6 +173,14 @@ static int bzimage_parse_header ( struct image *image,
+ 	bzimg->mem_limit = ( ( bzimg->version >= 0x0203 ) ?
+ 			     bzhdr->initrd_addr_max : BZI_INITRD_MAX );
+ 
++	/* A kernel that accepts initrds above 4GB accepts them anywhere
++	 * below 4GB too; initrd_addr_max stays at 2GB only for old
++	 * loaders.  Use all of the 32-bit address space.
++	 */
++	if ( ( bzimg->version >= 0x020c ) &&
++	     ( bzhdr->xloadflags & BZI_XLF_CAN_BE_LOADED_ABOVE_4G ) )
++		bzimg->mem_limit = 0xffffffffUL;
++
+ 	/* Extract command line size */
+ 	bzimg->cmdline_size = ( ( bzimg->version >= 0x0206 ) ?
+ 				bzhdr->cmdline_size : BZI_CMDLINE_SIZE );
+diff --git a/src/arch/x86/include/bzimage.h b/src/arch/x86/include/bzimage.h
+index 4933ce5b1..92f36f1d3 100644
+--- a/src/arch/x86/include/bzimage.h
++++ b/src/arch/x86/include/bzimage.h
+@@ -68,8 +68,10 @@ struct bzimage_header {
+ 	uint32_t kernel_alignment;
+ 	/** Whether kernel is relocatable or not */
+ 	uint8_t relocatable_kernel;
+-	/** Unused */
+-	uint8_t pad2[3];
++	/** Minimum alignment, as a power of two */
++	uint8_t min_alignment;
++	/** Boot protocol option flags */
++	uint16_t xloadflags;
+ 	/** Maximum size of the kernel command line */
+ 	uint32_t cmdline_size;
+ } __attribute__ (( packed ));
+@@ -77,6 +79,9 @@ struct bzimage_header {
+ /** Offset of bzImage header within kernel image */
+ #define BZI_HDR_OFFSET 0x1f1
+ 
++/** Kernel and initrd may be loaded above 4GB */
++#define BZI_XLF_CAN_BE_LOADED_ABOVE_4G 0x0002
++
+ /** bzImage boot flag value */
+ #define BZI_BOOT_FLAG 0xaa55
+ 

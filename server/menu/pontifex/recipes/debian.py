@@ -4,7 +4,7 @@ import os
 import re
 
 from ..util import download, q
-from .base import Recipe
+from .base import Recipe, need_ram
 
 DEBIAN_NETBOOT = ("https://deb.debian.org/debian/dists/{codename}/main/installer-amd64/"
                   "current/images/netboot/debian-installer/amd64/")
@@ -29,11 +29,12 @@ class Casper(Recipe):
                     args=(f"boot=casper ip=dhcp url={entry.iso_url} cloud-config-url=/dev/null "
                           "initramfs_options=size=90%"),
                     notes=f"downloads the whole ISO into RAM: needs about {ram_gb:.0f}GB RAM")
-        meta["label_hint"] = f"RAM {ram_gb:.0f}GB+"
+        need_ram(meta, ram_gb * 2**30)
         info = iso.read_member(".disk/info") if iso.has(".disk/info") else ""
         m = re.search(r"\b(\d{1,2})\.(\d{2})", info)
         if m and int(m.group(1)) < 18:  # casper learned url= around 18.04
             meta["label_hint"] = "casper too old for HTTP, won't find its media"
+            meta.pop("ram_mb", None)
             meta["notes"] = f"{info.strip()[:60]}: casper before 18.04 has no url= support"
         return True
 

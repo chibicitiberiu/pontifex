@@ -3,7 +3,7 @@ CD-emulation fallback (sanboot)."""
 
 from ..config import FLOPPY_MAX
 from ..image import eltorito
-from .base import Recipe, memdisk_url
+from .base import Recipe, memdisk_url, need_ram
 
 
 class Memdisk(Recipe):
@@ -47,7 +47,7 @@ class Sanboot(Recipe):
         if bios and "none" not in bios:
             bios_method = "memdisk-iso"
             if entry.size > 64 * 2**20:  # memdisk holds the whole ISO in RAM
-                meta["label_hint"] = f"BIOS: RAM {entry.size / 2**30 + 0.5:.1f}GB+"
+                need_ram(meta, entry.size + (256 << 20), "pcbios")
         meta.update(recipe=self.name, platforms=platforms or ["pcbios", "efi"], bios_method=bios_method,
                     eltorito=[f"{p}:{m}" for p, m in boot],
                     notes="generic CD emulation: works until an OS kernel loads its own disk drivers"

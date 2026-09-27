@@ -30,6 +30,27 @@ class MenuTest(unittest.TestCase):
         self.assertIn("[needs a CD]", line)
         self.assertNotIn("[unknown]", line)
 
+    def test_ram_warning(self):
+        meta = {"recipe": "antix", "ram_mb": 4714, "ram_platform": None, "label_hint": "RAM 4.6GB+",
+                "files": {"kernel": "vmlinuz", "initrd": "initrd.gz"}}
+        e = self.prepared("linux/mx.iso", meta)
+        self.assertIn("(RAM 4.6GB+)", menu.menu_item(e, meta, "pcbios", None)[0])
+        self.assertIn("(RAM 4.6GB+)", menu.menu_item(e, meta, "pcbios", 8000)[0])
+        self.assertIn("(needs 4.6GB RAM, has 2GB)", menu.menu_item(e, meta, "pcbios", 2048)[0])
+        script = menu.render_entry(e, "pcbios", 2048)
+        self.assertIn("prompt --key y", script)
+        self.assertNotIn("prompt --key", menu.render_entry(e, "pcbios", 8000))
+        self.assertNotIn("prompt --key", menu.render_entry(e, "efi", None))
+
+    def test_ram_need_per_platform_and_legacy_hint(self):
+        self.assertIsNone(menu.ram_need({"ram_mb": 900, "ram_platform": "pcbios"}, "efi"))
+        self.assertEqual(menu.ram_need({"ram_mb": 900, "ram_platform": "pcbios"}, "pcbios"), 900)
+        self.assertEqual(menu.ram_need({"label_hint": "RAM 5GB+"}, "efi"), 5120)
+        self.assertIsNone(menu.ram_need({"label_hint": "BIOS: RAM 1.1GB+"}, "efi"))
+        self.assertIsNone(menu.ram_need({"label_hint": "casper too old"}, "pcbios"))
+        self.assertEqual(menu.parse_mem(""), None)
+        self.assertEqual(menu.parse_mem("2015"), 2015)
+
     def test_kernel_initrd_entry(self):
         e = self.prepared("linux/deb.iso", {"recipe": "debian-live", "args": "boot=live",
                                             "files": {"kernel": "live/vmlinuz", "initrd": "live/initrd.img"}})

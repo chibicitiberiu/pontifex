@@ -8,13 +8,13 @@ from pontifex.recipes import base
 from pontifex.recipes.base import Ctx, fit_payload, inject_files, kernel_initrd
 
 
-def bzimage(path, is64=True, initrd_max=0x7fffffff, pe=True):
+def bzimage(path, is64=True, initrd_max=0x7fffffff, pe=True, above4g=True):
     """A file with just enough of a Linux boot header."""
     h = bytearray(0x1000)
     h[0x202:0x206] = b"HdrS"
     struct.pack_into("<H", h, 0x206, 0x20f)
     struct.pack_into("<I", h, 0x22c, initrd_max)
-    struct.pack_into("<H", h, 0x236, 0x3 if is64 else 0)
+    struct.pack_into("<H", h, 0x236, (0x1 if is64 else 0) | (0x2 if is64 and above4g else 0))
     if pe:
         h[:2] = b"MZ"
         struct.pack_into("<I", h, 0x3c, 0x80)
@@ -56,7 +56,7 @@ class BzImageTest(unittest.TestCase):
         p = os.path.join(self.site.images, "k")
         bzimage(p)
         self.assertEqual(bzimage_info(p), {"version": 0x20f, "is64": True, "efi64": True,
-                                           "initrd_max": 0x7fffffff})
+                                           "above4g": True, "initrd_max": 0x7fffffff})
         bzimage(p, is64=False, pe=False)
         self.assertFalse(bzimage_info(p)["efi64"])
         self.assertIsNone(bzimage_info(self.site.image("not-a-kernel")))
@@ -96,11 +96,14 @@ class InjectTest(unittest.TestCase):
 
     def test_platforms_by_size(self):
         self.assertEqual(fit_payload(self.ctx(500 << 20)), ["pcbios", "efi"])
-        self.assertEqual(fit_payload(self.ctx(2100 << 20)), ["efi"])        # over initrd_max
+        # 64-bit kernels may use all of the first 4 GB (patched iPXE), older ones 2 GB
+        self.assertEqual(fit_payload(self.ctx(2100 << 20)), ["pcbios", "efi"])
+        self.assertEqual(fit_payload(self.ctx(2100 << 20, above4g=False)), ["efi"])
+        self.assertEqual(fit_payload(self.ctx(3100 << 20)), ["efi"])
         self.assertEqual(fit_payload(self.ctx(900 << 20, is64=False, pe=False)), [])  # 32-bit lowmem
         ctx = self.ctx(2100 << 20)
         fit_payload(ctx)
-        self.assertEqual(ctx.meta["label_hint"], "RAM 5GB+")
+        self.assertEqual((ctx.meta["ram_mb"], ctx.meta["label_hint"]), (4714, "RAM 4.6GB+"))
 
 
 class SplitTest(unittest.TestCase):

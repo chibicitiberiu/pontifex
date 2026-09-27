@@ -65,7 +65,11 @@ with the reason when the family is known not to netboot (`[needs a CD]`, `[use a
 `[too big to netboot]`). Their
 boot loader starts, but whatever runs after it may not find its media (see [limits](#limits)).
 Big images show how much **RAM** they need, e.g. `(RAM 6GB+)`, since live systems and some
-installers load everything into memory.
+installers load everything into memory. On BIOS machines iPXE reports the installed RAM, so
+the menu says `(needs 4.7GB RAM, has 2GB)` where it won't fit, and picking such an entry
+asks before loading it (press `y` to try anyway). UEFI iPXE can't tell how much RAM there
+is; there an image that doesn't fit stops with "Failed to load initrd" and goes back to
+the menu.
 
 Entries that can't work on a firmware are left out of that menu: floppy images and
 memdisk-only ISOs don't appear on UEFI, and ISOs without an EFI boot entry don't either.
@@ -75,9 +79,10 @@ Some live CDs (Puppy, Knoppix, antiX/MX, Clear Linux) have no network code in th
 they only look for their root image on disks. For these, iPXE downloads the root image along
 with the initrd and places it inside the initramfs, where the init finds it (for antiX and
 Clear, via a small patched `/init` appended as an extra initrd). What that means:
-- **RAM:** about twice the root image while booting, shown in the menu (`RAM 5GB+`).
-- **BIOS:** the kernel only accepts initrds below 2 GB there, so bigger images are UEFI
-  only, and a 32-bit kernel only takes about 750 MB. Puppy fits on BIOS, MX and Knoppix DVD don't.
+- **RAM:** about twice the root image while booting, shown in the menu (`RAM 4.7GB+`).
+- **BIOS:** everything has to fit below 4 GB there (Pontifex's iPXE is patched to allow
+  that for 64-bit kernels; stock iPXE stops at 2 GB), so about 3 GB of payload: MX fits,
+  Knoppix DVD and Clear Linux are UEFI only. A 32-bit kernel takes only about 750 MB.
 - Files over 2 GB are split in the cache and joined by the init (the kernel truncates a
   single initramfs file at 2 GB).
 

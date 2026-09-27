@@ -4,7 +4,7 @@ import os
 
 from .. import config
 from ..util import q
-from .base import Recipe
+from .base import Recipe, need_ram
 
 # ISO path (lower case) -> the name wimboot expects
 WIMBOOT_FILES = {"bootmgr": "bootmgr", "boot/bcd": "BCD", "boot/boot.sdi": "boot.sdi",
@@ -25,7 +25,7 @@ class Wimboot(Recipe):
         meta.update(recipe=self.name, files={m: iso.orig(m) for m in members})
         wim = os.path.getsize(ctx.cache_path(iso.orig("sources/boot.wim")))
         if wim > 600 * 2**20:  # WinPE needs roughly twice the WIM in RAM for its ramdisk
-            meta["label_hint"] = f"RAM {max(4, round(wim * 2 / 2**30 + 1))}GB+"
+            need_ram(meta, max(4 << 30, wim * 2 + (1 << 30)))
         if iso.has("sources/install.wim") or iso.has("sources/install.esd"):
             meta["notes"] = ("Windows setup: needs the install media on an SMB share "
                              "(Windows phase, not set up yet); WinPE itself boots.")

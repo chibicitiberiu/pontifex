@@ -4,7 +4,7 @@ import os
 import re
 
 from ..util import q
-from .base import Recipe
+from .base import Recipe, need_ram
 
 ARCHES = ("x86_64", "i686")   # i686: SystemRescue 8 32-bit, archlinux32
 
@@ -42,7 +42,7 @@ class Archiso(Recipe):
             meta["platforms"] = ["pcbios"]   # our UEFI iPXE is x86_64 only
         sfs = iso.first(rf"[^/]+/{arch}/airootfs\.(sfs|erofs)")
         size = os.path.getsize(ctx.cache_path(iso.orig(sfs))) if sfs else 0
-        meta["label_hint"] = f"RAM {max(2, round(size * 2 / 2**30 + 1))}GB+"
+        need_ram(meta, max(2 << 30, size * 2 + (1 << 30)))
         return True
 
 

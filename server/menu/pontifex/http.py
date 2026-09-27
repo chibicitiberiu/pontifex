@@ -72,13 +72,13 @@ class Handler(BaseHTTPRequestHandler):
 
     # --- routes ---------------------------------------------------------------------
     def route_menu(self, qs, platform):
-        return self._send(menu.render_menu(platform, qs.get("mac", "")))
+        return self._send(menu.render_menu(platform, qs.get("mac", ""), menu.parse_mem(qs.get("mem"))))
 
     def route_entry(self, qs, platform, entry_id):
         e = library.find(entry_id)
         if not e:
             return self._send("#!ipxe\necho Unknown entry\nprompt\n", code=404)
-        return self._send(menu.render_entry(e, platform))
+        return self._send(menu.render_entry(e, platform, menu.parse_mem(qs.get("mem"))))
 
     def route_uefi(self, qs, platform, entry_id, what):
         e = library.find(entry_id)

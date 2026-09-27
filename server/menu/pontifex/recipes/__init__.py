@@ -10,6 +10,7 @@ from ..config import DISK_EXT
 from ..image import IsoListing
 from .antix import Antix
 from .arch import Archiso, SysrcdLegacy
+from .clear import ClearLinux
 from .base import Ctx, Recipe, kernel_initrd
 from .debian import Casper, DebianInstaller, DebianLive
 from .generic import Memdisk, Sanboot
@@ -37,6 +38,7 @@ ISO_RECIPES = [
     Puppy(),
     Knoppix(),
     Antix(),
+    ClearLinux(),
 ]
 
 BY_NAME = {r.name: r for r in [MEMDISK, SANBOOT, *ISO_RECIPES]}

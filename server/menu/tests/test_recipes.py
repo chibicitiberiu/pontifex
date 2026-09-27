@@ -25,6 +25,8 @@ LISTINGS = {
     "knoppix": ["boot/isolinux/linux", "boot/isolinux/linux64", "boot/isolinux/minirt.gz",
                 "KNOPPIX/KNOPPIX", "KNOPPIX/KNOPPIX1"],
     "antix": ["antiX/vmlinuz", "antiX/initrd.gz", "antiX/linuxfs", ".disk/info"],
+    "clear-linux": ["images/rootfs.img", "loader/entries/Clear-linux-native-6.9.10-1451.conf",
+                    "loader/entries/iso-checksum.conf", "EFI/BOOT/initrd.gz"],
     "anaconda": ["images/pxeboot/vmlinuz", "images/pxeboot/initrd.img", "images/install.img", ".treeinfo"],
 }
 

@@ -1,0 +1,96 @@
+#!/bin/sh
+# Pontifex disk writer: write an image from the Pontifex server to a local disk.
+# Runs on tty1 of the netbooted Tiny Core system: brings the network up, then loops
+# brandr (pick image -> target -> method -> review -> write + verify) with a small menu.
+export PONTIFEX_WRITER=1 TERM=linux
+ldconfig 2>/dev/null   # pick up the libraries unpacked from our extensions
+# keep kernel messages (e.g. the expected I/O error after a floppy swap) off the
+# console, where they would scribble over the UI; they stay in dmesg
+dmesg -n 1 2>/dev/null
+
+arg() { for w in $(cat /proc/cmdline); do case "$w" in "$1"=*) echo "${w#*=}" ;; esac; done; }
+SERVER=$(arg pontifex.server)             # set by the Pontifex menu entry
+NE=$(arg pontifex.ne)                      # ISA NE2000: io[,irq], e.g. 0x300,10
+
+# Real network cards have a device link in sysfs (lo, dummy0, tunl0 don't)
+nics() { for d in /sys/class/net/*; do [ -e "$d/device" ] && echo "${d##*/}"; done; }
+have_nic() { [ -n "$(nics)" ]; }
+addresses() { # "eth0 10.0.2.15" per configured card (busybox has ifconfig, not ip)
+    for n in $(nics); do
+        a=$(ifconfig "$n" 2>/dev/null | sed -n 's/.*inet addr:\([0-9.]*\).*/\1/p')
+        [ -n "$a" ] && echo "$n $a"
+    done
+}
+have_ip() { [ -n "$(addresses)" ]; }
+
+bring_up_network() {
+    # PCI cards (RTL8139, NE2000-PCI) are loaded by udev and get DHCP from Tiny Core
+    i=0
+    while [ $i -lt 10 ] && ! have_nic; do sleep 1; i=$((i + 1)); done
+    if ! have_nic; then
+        # ISA NE2000 can't be enumerated: try the kernel arg, then the usual ports
+        if [ -n "$NE" ]; then
+            io=${NE%%,*}; irq=${NE#*,}; [ "$irq" = "$NE" ] && irq=""
+            modprobe ne io=$io ${irq:+irq=$irq} 2>/dev/null
+        else
+            for io in 0x300 0x280 0x320 0x340 0x240 0x360; do
+                echo "Probing ISA NE2000 at $io ..."
+                modprobe ne io=$io 2>/dev/null && break
+            done
+        fi
+    fi
+    have_nic || return 1
+    i=0
+    while [ $i -lt 20 ] && ! have_ip; do sleep 1; i=$((i + 1)); done
+    if ! have_ip; then
+        for dev in $(nics); do
+            ifconfig "$dev" up
+            udhcpc -i "$dev" -n -q -t 5 >/dev/null 2>&1 && break
+        done
+    fi
+    have_ip
+}
+
+banner() {
+    clear
+    echo "Pontifex disk writer - write an image from $SERVER to a local disk"
+    echo "======================================================="
+    echo
+}
+
+if [ -z "$SERVER" ]; then
+    echo "No server given: boot with pontifex.server=http://<server>:<port>"
+    printf "Server URL: "; read -r SERVER
+fi
+
+banner
+echo "Bringing up the network..."
+until bring_up_network; do
+    banner
+    echo "No network. No card was found, or DHCP got no answer."
+    echo "For an ISA NE2000 boot with: pontifex.ne=0x300,10  (io,irq)"
+    echo
+    printf "[r]etry  [s]hell  re[b]oot  [p]ower off: "
+    read -r a
+    case "$a" in
+        s) sh ;;
+        b) reboot; sleep 30 ;;
+        p) poweroff; sleep 30 ;;
+    esac
+done
+
+while true; do
+    banner
+    addresses | while read -r n a; do echo "Network: $n $a"; done
+    echo
+    brandr burn --catalog "$SERVER/images.json" --show-all-disks \
+        --hash skip --compression auto --root never
+    echo
+    printf "[w]rite another image  [s]hell  re[b]oot  [p]ower off: "
+    read -r a
+    case "$a" in
+        s) echo "Type exit to come back to the writer."; sh ;;
+        b) reboot; sleep 30 ;;
+        p) poweroff; sleep 30 ;;
+    esac
+done

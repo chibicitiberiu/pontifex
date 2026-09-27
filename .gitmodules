@@ -1,0 +1,3 @@
+[submodule "writer/brandr"]
+	path = writer/brandr
+	url = https://github.com/chibicitiberiu/brandr.git

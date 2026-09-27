@@ -1,0 +1,44 @@
+# Pontifex: network boot server. Settings come from .env (see .env.example, or run
+# ./setup.sh). The folders your library links point into are mounted by
+# docker-compose.override.yml, which setup.sh generates from PONTIFEX_SOURCES.
+#
+# Everything the stack produces lives under PONTIFEX_DATA (library/, cache/, tftp/,
+# hosts.conf) as plain bind mounts: nothing is kept in named volumes.
+services:
+  dnsmasq:
+    build: ./server/dnsmasq
+    network_mode: host          # proxyDHCP needs LAN broadcasts, TFTP needs un-NATed replies
+    cap_add: [NET_ADMIN, NET_RAW]
+    environment:
+      PONTIFEX_IFACE: ${PONTIFEX_IFACE:?set PONTIFEX_IFACE in .env}
+      PONTIFEX_SUBNET: ${PONTIFEX_SUBNET:?set PONTIFEX_SUBNET in .env}
+    volumes:
+      - ${PONTIFEX_DATA}/tftp:/tftp:ro
+    restart: unless-stopped
+
+  menu:
+    build: ./server/menu
+    user: "${PONTIFEX_UID:-1000}:${PONTIFEX_GID:-1000}"
+    environment:
+      PXE_BASE_URL: http://${PONTIFEX_IP:?set PONTIFEX_IP in .env}:${PONTIFEX_PORT:-8069}
+      PXE_LIBRARY: ${PONTIFEX_DATA}/library
+      PXE_CACHE: ${PONTIFEX_DATA}/cache
+      PXE_HOSTS: ${PONTIFEX_DATA}/hosts.conf
+      PXE_WRITER: ${PONTIFEX_DATA}/tftp/brandr
+    volumes:
+      # same path inside as outside, so absolute symlinks in library/ resolve
+      - ${PONTIFEX_DATA}:${PONTIFEX_DATA}
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:latest
+    depends_on: [menu]
+    ports:
+      - "${PONTIFEX_BIND:-${PONTIFEX_IP}}:${PONTIFEX_PORT:-8069}:80"
+    environment:
+      PONTIFEX_DATA: ${PONTIFEX_DATA}
+    volumes:
+      # rendered with envsubst by the nginx image into /etc/nginx/conf.d/default.conf
+      - ./server/nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ${PONTIFEX_DATA}:${PONTIFEX_DATA}:ro
+    restart: unless-stopped

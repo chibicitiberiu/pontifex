@@ -1,0 +1,38 @@
+# Pontifex: the bytes for iPXE and the installers. Plain HTTP on purpose: iPXE and many
+# installers can't use a private CA, and install media on a LAN doesn't need TLS.
+# ${PONTIFEX_DATA} is filled in by the nginx image's envsubst at start.
+server {
+    listen 80 default_server;
+    server_name _;
+
+    sendfile on;
+    tcp_nopush on;
+    # Old busybox wget (SystemRescueCd 5, ...) ignores Content-Length and waits for the
+    # server to close; the 65s default made every fetch stall. iPXE's sanboot requests
+    # come back-to-back, so a short keep-alive still covers them.
+    keepalive_timeout 5s;
+    access_log /dev/stdout;
+
+    # The ISO library (a folder of symlinks). Range requests are what makes sanboot work.
+    location /iso/ {
+        alias ${PONTIFEX_DATA}/library/;
+        disable_symlinks off;
+        autoindex on;
+    }
+    # Kernels/initrds/trees extracted by the menu service
+    location /cache/ {
+        alias ${PONTIFEX_DATA}/cache/;
+        autoindex on;
+    }
+    # memdisk, wimboot, the iPXE binaries and the brandr writer (same dir as the TFTP root)
+    location /files/ {
+        alias ${PONTIFEX_DATA}/tftp/;
+        autoindex on;
+    }
+    location / {
+        proxy_pass http://menu:8000;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+        proxy_buffering off;
+    }
+}

@@ -1,0 +1,15 @@
+#!ipxe
+# Embedded in every Pontifex iPXE build: get an address, then hand over to the menu
+# service. @SERVER_URL@ is filled in by build.sh (it's the only site-specific part).
+echo Pontifex network boot (iPXE ${version}, ${platform}/${buildarch})
+:retry
+dhcp && goto menu
+echo DHCP failed, retrying in 3 seconds...
+sleep 3
+goto retry
+:menu
+chain @SERVER_URL@/menu.ipxe?platform=${platform}&buildarch=${buildarch}&mac=${mac:hexhyp} && goto retry
+echo Could not load @SERVER_URL@/menu.ipxe
+echo Dropping to the iPXE shell. Type "exit" to retry.
+shell
+goto retry

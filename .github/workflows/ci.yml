@@ -1,0 +1,30 @@
+# Pontifex CI: lint the scripts and the menu service, validate the compose file and build
+# the container images. (The iPXE and writer builds need a site URL / release and run in
+# setup.sh on the server.)
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          sudo apt-get install -y -qq shellcheck
+          shellcheck -S warning setup.sh ipxe/build.sh writer/build.sh \
+            writer/overlay/usr/local/bin/pontifex-writer server/dnsmasq/entrypoint.sh \
+            test/qemu.sh test/qemu-pxe.sh test/shot.sh
+      - name: python
+        run: python3 -m py_compile server/menu/app.py test/sendkeys.py test/flaky_http.py
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: validate compose with the example settings
+        run: cp .env.example .env && docker compose config -q
+      - name: build images
+        run: docker compose build

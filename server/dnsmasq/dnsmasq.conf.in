@@ -1,0 +1,21 @@
+# Pontifex: proxyDHCP + TFTP only. Your router stays the DHCP server; this answers PXE
+# clients with "boot file X from this server" and never hands out addresses.
+
+port=0                  # no DNS
+interface=@IFACE@       # the LAN only: never docker bridges, VPN or other interfaces
+bind-interfaces
+log-dhcp
+
+dhcp-range=@SUBNET@,proxy
+
+enable-tftp
+tftp-root=/tftp
+
+# Machines already running iPXE (option 175) must not be offered iPXE again.
+# Pontifex's iPXE has an embedded script, so this is belt and braces.
+dhcp-match=set:ipxe,175
+
+# Filenames with an extension are sent as-is (dnsmasq adds ".0" only to bare basenames)
+pxe-service=tag:!ipxe,x86PC,"Pontifex iPXE (BIOS)",undionly.kpxe
+pxe-service=tag:!ipxe,x86-64_EFI,"Pontifex iPXE (UEFI)",ipxe.efi
+pxe-service=tag:!ipxe,BC_EFI,"Pontifex iPXE (UEFI)",ipxe.efi

@@ -4,7 +4,8 @@ import unittest
 
 from tests.helpers import TempSite
 from pontifex.image import bzimage_info, write_cpio
-from pontifex.recipes.base import Ctx, fit_payload, kernel_initrd
+from pontifex.recipes import base
+from pontifex.recipes.base import Ctx, fit_payload, inject_files, kernel_initrd
 
 
 def bzimage(path, is64=True, initrd_max=0x7fffffff, pe=True):
@@ -100,3 +101,27 @@ class InjectTest(unittest.TestCase):
         ctx = self.ctx(2100 << 20)
         fit_payload(ctx)
         self.assertEqual(ctx.meta["label_hint"], "RAM 5GB+")
+
+
+class SplitTest(unittest.TestCase):
+    def test_big_files_are_split_and_joined(self):
+        site = TempSite()
+        try:
+            d = os.path.join(site.cache, "k")
+            os.makedirs(d)
+            data = bytes(range(256)) * 40          # 10240 bytes
+            with open(os.path.join(d, "big"), "wb") as f:
+                f.write(data)
+            old, base.MAX_INJECT = base.MAX_INJECT, 4096
+            try:
+                inject, join = inject_files(Ctx(Entry(d), None, {}), [["big", "/x/big"]])
+            finally:
+                base.MAX_INJECT = old
+            self.assertEqual(inject, [["big", "/x/big"], ["big.part1", "/x/big.part1"],
+                                      ["big.part2", "/x/big.part2"]])
+            self.assertEqual(join, ["for p in /x/big.part1 /x/big.part2; do cat $p >> /x/big && rm -f $p; done"])
+            parts = [open(os.path.join(d, n), "rb").read() for n in ("big", "big.part1", "big.part2")]
+            self.assertEqual([len(p) for p in parts], [4096, 4096, 2048])
+            self.assertEqual(b"".join(parts), data)
+        finally:
+            site.close()

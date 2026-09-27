@@ -8,6 +8,7 @@ before the families it must win against.
 
 from ..config import DISK_EXT
 from ..image import IsoListing
+from .antix import Antix
 from .arch import Archiso, SysrcdLegacy
 from .base import Ctx, Recipe, kernel_initrd
 from .debian import Casper, DebianInstaller, DebianLive
@@ -35,6 +36,7 @@ ISO_RECIPES = [
     Anaconda(),
     Puppy(),
     Knoppix(),
+    Antix(),
 ]
 
 BY_NAME = {r.name: r for r in [MEMDISK, SANBOOT, *ISO_RECIPES]}

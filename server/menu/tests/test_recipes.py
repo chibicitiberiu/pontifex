@@ -24,6 +24,7 @@ LISTINGS = {
               "isolinux.bin"],
     "knoppix": ["boot/isolinux/linux", "boot/isolinux/linux64", "boot/isolinux/minirt.gz",
                 "KNOPPIX/KNOPPIX", "KNOPPIX/KNOPPIX1"],
+    "antix": ["antiX/vmlinuz", "antiX/initrd.gz", "antiX/linuxfs", ".disk/info"],
     "anaconda": ["images/pxeboot/vmlinuz", "images/pxeboot/initrd.img", "images/install.img", ".treeinfo"],
 }
 

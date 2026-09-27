@@ -4,7 +4,7 @@ disks ("humongous initrd"), so iPXE drops them at /."""
 import posixpath
 
 from ..util import run
-from .base import Recipe, fit_payload, overlay_init
+from .base import Recipe, fit_payload, inject_files, overlay_init
 
 # With enough RAM, init moves an in-initrd .sfs to /mnt/tmpfs, and that path has bugs:
 INIT_FIXES = [
@@ -40,6 +40,10 @@ class Puppy(Recipe):
         # puppy_*.sfs plus the optional layers: zdrv (drivers), fdrv (firmware), adrv, ydrv
         layers = iso.all(rf"{prefix}[a-z]?(drv|puppy)_[^/]+\.sfs")
         iso.extract([kernel, initrd, *layers], ctx.dest)
+        inject, join = inject_files(ctx, [[iso.orig(s), "/" + posixpath.basename(iso.orig(s))]
+                                          for s in layers])
+        if join:
+            return False   # no .sfs is that big; nothing here would join it
         initrds = [iso.orig(initrd)]
         init = run(["bsdtar", "-xOf", ctx.cache_path(initrds[0]), "init"], errors="replace").stdout
         edits = [e for marker, fix in INIT_FIXES if marker in init for e in fix]
@@ -48,7 +52,7 @@ class Puppy(Recipe):
         ctx.meta.update(
             recipe=self.name,
             files={"kernel": iso.orig(kernel), "initrds": initrds,
-                   "inject": [[iso.orig(s), "/" + posixpath.basename(iso.orig(s))] for s in layers]},
+                   "inject": inject},
             # pfix=ram: no save file (there's no disk to look on); ramfs: no tmpfs size cap
             args="pfix=ram rootfstype=ramfs",
             notes="the .sfs files are loaded into RAM with the initrd")

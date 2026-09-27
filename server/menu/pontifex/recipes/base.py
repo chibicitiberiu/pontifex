@@ -68,6 +68,39 @@ def kernel_initrd(entry, meta, extra):
     return lines
 
 
+# The kernel unpacks each initramfs file with one write, which stops at 2 GiB - 4 KiB
+# (MAX_RW_COUNT) and leaves the rest zero. Bigger files go in parts, joined by the init.
+MAX_INJECT = (1 << 31) - (1 << 20)
+
+
+def inject_files(ctx, pairs):
+    """[cache path, initramfs path] pairs -> (files.inject list, shell lines that rejoin
+    split files). Files over MAX_INJECT are split in the cache into <path>.partN."""
+    inject, join = [], []
+    for src, dst in pairs:
+        path = ctx.cache_path(src)
+        size = os.path.getsize(path)
+        inject.append([src, dst])
+        if size <= MAX_INJECT:
+            continue
+        parts = []
+        with open(path, "r+b") as f:
+            for n, off in enumerate(range(MAX_INJECT, size, MAX_INJECT), 1):
+                f.seek(off)
+                with open(f"{path}.part{n}", "wb") as out:
+                    remaining = min(MAX_INJECT, size - off)
+                    while remaining:
+                        chunk = f.read(min(remaining, 64 << 20))
+                        out.write(chunk)
+                        remaining -= len(chunk)
+                parts.append(n)
+            f.truncate(MAX_INJECT)
+        inject += [[f"{src}.part{n}", f"{dst}.part{n}"] for n in parts]
+        names = " ".join(f"{dst}.part{n}" for n in parts)
+        join.append(f"for p in {names}; do cat $p >> {dst} && rm -f $p; done")
+    return inject, join
+
+
 # iPXE on BIOS puts initrds between the kernel and initrd_max; leave room for the kernel.
 # A 32-bit kernel also needs them in its low memory (under ~896 MB).
 BIOS_KERNEL_ROOM = 128 << 20

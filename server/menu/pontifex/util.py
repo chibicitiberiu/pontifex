@@ -24,7 +24,8 @@ def ipxe_text(s):
 
 
 def run(cmd, timeout=3600, **kwargs):
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **kwargs)
+    kwargs.setdefault("text", True)
+    return subprocess.run(cmd, capture_output=True, timeout=timeout, **kwargs)
 
 
 def check(r, what):

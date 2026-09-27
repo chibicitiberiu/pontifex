@@ -6,20 +6,29 @@ import re
 from ..util import q
 from .base import Recipe
 
-AIROOTFS = r"[^/]+/x86_64/airootfs\.(sfs|erofs)"
+ARCHES = ("x86_64", "i686")   # i686: SystemRescue 8 32-bit, archlinux32
+
+
+def kernel_of(iso):
+    """(kernel path, arch) of the first architecture the image has."""
+    for arch in ARCHES:
+        k = iso.first(rf"([^/]+)/boot/{arch}/vmlinuz[^/]*")
+        if k and iso.first(rf"[^/]+/{arch}/airootfs\.(sfs|erofs)"):
+            return k, arch
+    return None, None
 
 
 class Archiso(Recipe):
     name = "archiso"
 
     def detect(self, ctx):
-        return bool(ctx.iso.first(r"([^/]+)/boot/x86_64/vmlinuz[^/]*") and ctx.iso.first(AIROOTFS))
+        return kernel_of(ctx.iso)[0] is not None
 
     def prepare(self, ctx):
         iso, entry, meta = ctx.iso, ctx.entry, ctx.meta
-        kernel = iso.first(r"([^/]+)/boot/x86_64/vmlinuz[^/]*")
+        kernel, arch = kernel_of(iso)
         basedir = kernel.split("/")[0]
-        bootdir = f"{basedir}/boot/x86_64/"
+        bootdir = f"{basedir}/boot/{arch}/"
         main_initrd = iso.first(re.escape(bootdir) + r"(initramfs-linux|sysresccd)[^/]*\.img")
         ucode = iso.all(re.escape(basedir) + r"/boot/(intel|amd)[-_]ucode\.img")
         if not main_initrd:
@@ -29,7 +38,9 @@ class Archiso(Recipe):
                                              "initrds": [iso.orig(u) for u in ucode] + [iso.orig(main_initrd)]},
                     args=f"archisobasedir={iso.orig(basedir)} archiso_http_srv={entry.cache_url}/ ip=dhcp",
                     notes="root filesystem is fetched into RAM, then copied once more (archiso forces copytoram over HTTP)")
-        sfs = iso.first(AIROOTFS)
+        if arch != "x86_64":
+            meta["platforms"] = ["pcbios"]   # our UEFI iPXE is x86_64 only
+        sfs = iso.first(rf"[^/]+/{arch}/airootfs\.(sfs|erofs)")
         size = os.path.getsize(ctx.cache_path(iso.orig(sfs))) if sfs else 0
         meta["label_hint"] = f"RAM {max(2, round(size * 2 / 2**30 + 1))}GB+"
         return True

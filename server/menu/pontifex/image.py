@@ -181,3 +181,50 @@ def iso_volume_label(path):
         vid = ""
     label = re.sub(r"[^A-Z0-9_-]", "_", vid.upper())[:11].rstrip("_")
     return label or "PONTIFEX"
+
+
+def bzimage_info(path):
+    """What a Linux kernel's boot header says, or None if it isn't a bzImage:
+    is64 (a 64-bit kernel), efi64 (bootable by x86_64 UEFI firmware), initrd_max (the
+    highest address an initrd may end at when a BIOS loader places it)."""
+    try:
+        with open(path, "rb") as f:
+            h = f.read(0x1000)
+    except OSError:
+        return None
+    if len(h) < 0x264 or h[0x202:0x206] != b"HdrS":
+        return None
+    u16 = lambda o: struct.unpack_from("<H", h, o)[0]
+    u32 = lambda o: struct.unpack_from("<I", h, o)[0]
+    version = u16(0x206)
+    xload = u16(0x236) if version >= 0x20c else 0
+    pe = u32(0x3c) if h[:2] == b"MZ" else 0
+    pe64 = 0 < pe < len(h) - 6 and h[pe:pe + 4] == b"PE\0\0" and u16(pe + 4) == 0x8664
+    return {"version": version,
+            "is64": bool(xload & 0x1),
+            "efi64": bool(pe64 or xload & 0x8),
+            "initrd_max": u32(0x22c) if version >= 0x203 else 0x37ffffff}
+
+
+def write_cpio(dest, files):
+    """An uncompressed newc cpio with {path: (bytes, mode)}; parent dirs are added. The
+    kernel unpacks cpios in order, so one appended after an initrd overrides its files."""
+    def entry(name, mode, data=b""):
+        name = name.encode() + b"\0"
+        hdr = b"070701" + b"".join(b"%08X" % v for v in (
+            0, mode, 0, 0, 1, 0, len(data), 0, 0, 0, 0, len(name), 0))
+        pad = lambda n: b"\0" * (-n % 4)
+        return hdr + name + pad(len(hdr) + len(name)) + data + pad(len(data))
+
+    out, dirs = [], set()
+    for path, (data, mode) in files.items():
+        parts = path.strip("/").split("/")
+        for i in range(1, len(parts)):
+            d = "/".join(parts[:i])
+            if d not in dirs:
+                dirs.add(d)
+                out.append(entry(d, 0o40755))
+        out.append(entry("/".join(parts), 0o100000 | mode, data))
+    out.append(entry("TRAILER!!!", 0))
+    with open(dest, "wb") as f:
+        f.write(b"".join(out))

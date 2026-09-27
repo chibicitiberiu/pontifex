@@ -5,7 +5,8 @@ from pontifex import recipes
 from pontifex.image import IsoListing
 from pontifex.recipes.base import Ctx
 
-# File listings (as bsdtar prints them) that identify each family
+# File listings (as bsdtar prints them) that identify each family. The key is the recipe
+# name, optionally followed by a variant.
 LISTINGS = {
     "wimboot": ["bootmgr", "boot/bcd", "boot/boot.sdi", "sources/boot.wim", "sources/install.wim"],
     "casper": ["casper/vmlinuz", "casper/initrd", ".disk/info"],
@@ -13,10 +14,14 @@ LISTINGS = {
     "debian-live": ["live/vmlinuz", "live/initrd.img", "live/filesystem.squashfs"],
     "archiso": ["arch/boot/x86_64/vmlinuz-linux", "arch/boot/x86_64/initramfs-linux.img",
                 "arch/x86_64/airootfs.sfs"],
+    "archiso i686": ["sysresccd/boot/i686/vmlinuz", "sysresccd/boot/i686/sysresccd.img",
+                     "sysresccd/i686/airootfs.sfs"],
     "sysrcd-legacy": ["sysrcd.dat", "isolinux/initram.igz", "isolinux/rescue64"],
     "dracut-live": ["LiveOS/squashfs.img", "images/pxeboot/vmlinuz", "images/pxeboot/initrd.img"],
     "anaconda-old": ["Fedora/base/stage2.img", "images/pxeboot/vmlinuz", "images/pxeboot/initrd.img"],
     "mandrake": ["isolinux/alt0/vmlinuz", "isolinux/alt0/all.rdz", "Mandrake/base/hdlists"],
+    "puppy": ["vmlinuz", "initrd.gz", "puppy_s15pup32_22.12.sfs", "zdrv_s15pup32_22.12.sfs",
+              "isolinux.bin"],
     "anaconda": ["images/pxeboot/vmlinuz", "images/pxeboot/initrd.img", "images/install.img", ".treeinfo"],
 }
 
@@ -34,7 +39,7 @@ class DetectionTest(unittest.TestCase):
     def test_each_family(self):
         for expected, names in LISTINGS.items():
             with self.subTest(expected):
-                self.assertEqual(detected(names), expected)
+                self.assertEqual(detected(names), expected.split()[0])
 
     def test_unknown_falls_back_to_sanboot(self):
         self.assertEqual(detected(["isolinux/isolinux.bin", "KNOPPIX/KNOPPIX"]), "sanboot")

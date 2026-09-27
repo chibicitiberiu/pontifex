@@ -13,6 +13,7 @@ from .base import Ctx, Recipe, kernel_initrd
 from .debian import Casper, DebianInstaller, DebianLive
 from .generic import Memdisk, Sanboot
 from .mandrake import Mandrake
+from .puppy import Puppy
 from .redhat import Anaconda, AnacondaOld, DracutLive
 from .windows import Wimboot
 
@@ -31,6 +32,7 @@ ISO_RECIPES = [
     AnacondaOld(),
     Mandrake(),
     Anaconda(),
+    Puppy(),
 ]
 
 BY_NAME = {r.name: r for r in [MEMDISK, SANBOOT, *ISO_RECIPES]}

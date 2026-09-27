@@ -8,7 +8,7 @@
 #   x86_64  -> CorePure64 + x86_64 brandr       (UEFI machines)
 #
 # brandr comes from, in order: $BRANDR_DIR/<i586|x86_64>/brandr if set; a GitHub release if
-# $BRANDR_VERSION is set (e.g. v0.1.0); otherwise it's built from the brandr/ submodule
+# $BRANDR_VERSION is set to its tag (e.g. brandr-v0.1.0); otherwise it's built from the brandr/ submodule
 # (needs docker).
 #
 # usage: writer/build.sh [--install <PONTIFEX_DATA>] [x86] [x86_64]
@@ -34,7 +34,7 @@ brandr_bin() { # i586|x86_64 -> path of the static binary
     if [ -n "${BRANDR_DIR:-}" ]; then
         echo "$BRANDR_DIR/$b/brandr"
     elif [ -n "${BRANDR_VERSION:-}" ]; then
-        name=brandr-$BRANDR_VERSION-$b-linux-musl
+        name=brandr-${BRANDR_VERSION#brandr-v}-$b-linux-musl   # tag brandr-v0.1.0 -> brandr-0.1.0-...
         d=$CACHE/brandr-release
         mkdir -p "$d"
         fetch "https://github.com/$BRANDR_REPO/releases/download/$BRANDR_VERSION/$name.tar.gz" "$d/$name.tar.gz"
